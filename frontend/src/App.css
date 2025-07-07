@@ -1,0 +1,422 @@
+/* App styles */
+.app {
+  min-height: 100vh;
+  background-color: #0079bf;
+}
+
+/* Board styles */
+.board {
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.board-header {
+  margin-bottom: 1rem;
+}
+
+.board-title {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.board-content {
+  height: calc(100vh - 120px);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.lists-container {
+  display: flex;
+  gap: 1rem;
+  height: 100%;
+  padding-bottom: 1rem;
+}
+
+/* List styles */
+.list {
+  background-color: #ebecf0;
+  border-radius: 8px;
+  padding: 0.5rem;
+  width: 272px;
+  min-width: 272px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.list-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #172b4d;
+}
+
+.card-count {
+  background-color: #ddd;
+  border-radius: 12px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.cards-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 20px;
+  margin-bottom: 0.5rem;
+}
+
+.cards-container.dragging-over {
+  background-color: #d4edda;
+  border-radius: 4px;
+}
+
+/* Card styles */
+.card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.card.dragging {
+  transform: rotate(5deg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.card-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #172b4d;
+  line-height: 1.4;
+  margin: 0;
+  flex: 1;
+}
+
+.checklist-toggle {
+  background-color: #f4f5f7;
+  border-radius: 4px;
+  padding: 0.25rem;
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b778c;
+  transition: background-color 0.2s ease;
+}
+
+.checklist-toggle:hover {
+  background-color: #e4e6f0;
+}
+
+.card-description {
+  font-size: 0.75rem;
+  color: #6b778c;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.checklist-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b778c;
+  margin-bottom: 0.5rem;
+}
+
+/* Checklist styles */
+.checklist {
+  border-top: 1px solid #e4e6f0;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.checklist-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #172b4d;
+}
+
+.checklist-items {
+  margin-bottom: 0.5rem;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: #172b4d;
+}
+
+.checklist-item span {
+  flex: 1;
+}
+
+.remove-item {
+  color: #6b778c;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.remove-item:hover {
+  background-color: #e4e6f0;
+  color: #172b4d;
+}
+
+.add-checklist-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.checklist-input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+}
+
+.checklist-input:focus {
+  background-color: white;
+  border-color: #0079bf;
+}
+
+.add-item-btn {
+  padding: 0.25rem;
+  background-color: #0079bf;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.add-item-btn:hover {
+  background-color: #005a8b;
+}
+
+/* Add card styles */
+.add-card-trigger {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: transparent;
+  color: #6b778c;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: background-color 0.2s ease;
+}
+
+.add-card-trigger:hover {
+  background-color: #d4e6f3;
+  color: #172b4d;
+}
+
+.add-card-form {
+  padding: 0.5rem;
+}
+
+.card-title-input,
+.card-description-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  margin-bottom: 0.5rem;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.card-title-input:focus,
+.card-description-input:focus {
+  border-color: #0079bf;
+  box-shadow: 0 0 0 2px rgba(0, 121, 191, 0.2);
+}
+
+.card-description-input {
+  min-height: 40px;
+}
+
+.add-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-card-btn {
+  padding: 0.5rem 1rem;
+  background-color: #0079bf;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.add-card-btn:hover:not(:disabled) {
+  background-color: #005a8b;
+}
+
+.add-card-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  padding: 0.5rem;
+  color: #6b778c;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: #e4e6f0;
+}
+
+/* Add list styles */
+.add-list-trigger {
+  background-color: rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  padding: 0.75rem;
+  width: 272px;
+  min-width: 272px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  transition: background-color 0.2s ease;
+}
+
+.add-list-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.32);
+}
+
+.add-list-form {
+  background-color: #ebecf0;
+  border-radius: 8px;
+  padding: 0.5rem;
+  width: 272px;
+  min-width: 272px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.list-title-input {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  margin-bottom: 0.5rem;
+}
+
+.list-title-input:focus {
+  border-color: #0079bf;
+  box-shadow: 0 0 0 2px rgba(0, 121, 191, 0.2);
+}
+
+.add-list-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-list-btn {
+  padding: 0.5rem 1rem;
+  background-color: #0079bf;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.add-list-btn:hover:not(:disabled) {
+  background-color: #005a8b;
+}
+
+.add-list-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Scrollbar styles */
+.cards-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cards-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.cards-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.cards-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.board-content::-webkit-scrollbar {
+  height: 12px;
+}
+
+.board-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.board-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+}
+
+.board-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+} 
