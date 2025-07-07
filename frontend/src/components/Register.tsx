@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { apiService, authService } from '../services/api';
+import { authAPI } from '../services/api';
 import { RegisterData } from '../types';
 
 interface RegisterProps {
-  onRegister: (user: any) => void;
+  onRegister: (token: string) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -13,100 +13,104 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin }) => {
     email: '',
     password: '',
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    
+    if (formData.password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
 
     try {
-      const user = await apiService.register(formData);
-      const loginResponse = await apiService.login({
+      // Register the user
+      await authAPI.register(formData);
+      
+      // Automatically log them in
+      const loginResponse = await authAPI.login({
         username: formData.username,
-        password: formData.password,
+        password: formData.password
       });
-      authService.setToken(loginResponse.access_token);
-      onRegister(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      
+      const { access_token } = loginResponse.data;
+      onRegister(access_token);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Task Tiles</h1>
-          <h2>Create Account</h2>
+    <div className="auth-form">
+      <h2>Create Account</h2>
+      
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder="Choose a username"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder="Enter your email"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder="Create a password"
-            />
-          </div>
-          
-          {error && <div className="error-message">{error}</div>}
-          
-          <button type="submit" disabled={loading} className="auth-button primary">
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
-        
-        <div className="auth-footer">
-          <span>Already have an account? </span>
-          <button onClick={onSwitchToLogin} className="link-button">
-            Sign in
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Username</label>
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Confirm Password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary" disabled={isLoading}>
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
+      </form>
+
+      <div className="auth-switch">
+        Already have an account?{' '}
+        <button type="button" onClick={onSwitchToLogin}>
+          Sign in here
+        </button>
       </div>
     </div>
   );

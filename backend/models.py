@@ -1,10 +1,22 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime, Boolean, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from typing import List as ListType
+import enum
 
 Base = declarative_base()
+
+
+class InvitationStatus(enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+
+
+class BoardRole(enum.Enum):
+    OWNER = "owner"
+    MEMBER = "member"
 
 
 class User(Base):
@@ -13,12 +25,18 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
+    full_name = Column(String(100), nullable=True)
+    avatar_url = Column(String(255), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
     
     # Relationships
-    boards = relationship("Board", back_populates="owner", cascade="all, delete-orphan")
+    owned_boards = relationship("Board", back_populates="owner", cascade="all, delete-orphan")
+    board_memberships = relationship("BoardMember", back_populates="user", cascade="all, delete-orphan")
+    sent_invitations = relationship("Invitation", foreign_keys="Invitation.inviter_id", back_populates="inviter")
+    received_invitations = relationship("Invitation", foreign_keys="Invitation.invitee_id", back_populates="invitee")
+    card_contributions = relationship("CardContributor", back_populates="user", cascade="all, delete-orphan")
 
 
 class Board(Base):
@@ -30,12 +48,46 @@ class Board(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Foreign key to user
+    # Foreign key to user (owner)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     # Relationships
-    owner = relationship("User", back_populates="boards")
+    owner = relationship("User", back_populates="owned_boards")
+    members = relationship("BoardMember", back_populates="board", cascade="all, delete-orphan")
     lists = relationship("TaskList", back_populates="board", cascade="all, delete-orphan")
+    invitations = relationship("Invitation", back_populates="board", cascade="all, delete-orphan")
+
+
+class BoardMember(Base):
+    __tablename__ = "board_members"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    board_id = Column(Integer, ForeignKey("boards.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(Enum(BoardRole), default=BoardRole.MEMBER)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    board = relationship("Board", back_populates="members")
+    user = relationship("User", back_populates="board_memberships")
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    board_id = Column(Integer, ForeignKey("boards.id"), nullable=False)
+    inviter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    invitee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    status = Column(Enum(InvitationStatus), default=InvitationStatus.PENDING)
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    responded_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    board = relationship("Board", back_populates="invitations")
+    inviter = relationship("User", foreign_keys=[inviter_id], back_populates="sent_invitations")
+    invitee = relationship("User", foreign_keys=[invitee_id], back_populates="received_invitations")
 
 
 class TaskList(Base):
@@ -62,7 +114,23 @@ class Card(Base):
     checklist = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     list_id = Column(Integer, ForeignKey("task_lists.id"), nullable=False)
     
-    # Relationship
-    task_list = relationship("TaskList", back_populates="cards") 
+    # Relationships
+    task_list = relationship("TaskList", back_populates="cards")
+    creator = relationship("User", foreign_keys=[created_by])
+    contributors = relationship("CardContributor", back_populates="card", cascade="all, delete-orphan")
+
+
+class CardContributor(Base):
+    __tablename__ = "card_contributors"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    card_id = Column(Integer, ForeignKey("cards.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    contributed_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    card = relationship("Card", back_populates="contributors")
+    user = relationship("User", back_populates="card_contributions") 

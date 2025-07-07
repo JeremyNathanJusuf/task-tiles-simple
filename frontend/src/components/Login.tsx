@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { apiService, authService } from '../services/api';
+import { authAPI } from '../services/api';
 import { LoginData } from '../types';
 
 interface LoginProps {
-  onLogin: (user: any) => void;
+  onLogin: (token: string) => void;
   onSwitchToRegister: () => void;
 }
 
@@ -12,110 +12,99 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
     username: '',
     password: '',
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
+    setError('');
 
     try {
-      const response = await apiService.login(formData);
-      authService.setToken(response.access_token);
-      const user = await apiService.getCurrentUser();
-      onLogin(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const response = await authAPI.login(formData);
+      const { access_token } = response.data;
+      onLogin(access_token);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Login failed. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
+    setError('');
 
     try {
-      const response = await apiService.login({
+      const response = await authAPI.login({
         username: 'demo',
-        password: 'demo123',
+        password: 'demo123'
       });
-      authService.setToken(response.access_token);
-      const user = await apiService.getCurrentUser();
-      onLogin(user);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Demo login failed');
+      const { access_token } = response.data;
+      onLogin(access_token);
+    } catch (err: any) {
+      setError('Demo login failed. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Task Tiles</h1>
-          <h2>Welcome Back</h2>
+    <div className="auth-form">
+      <h2>Welcome Back</h2>
+      
+      {error && (
+        <div className="error-message">
+          {error}
         </div>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder="Enter your username"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder="Enter your password"
-            />
-          </div>
-          
-          {error && <div className="error-message">{error}</div>}
-          
-          <button type="submit" disabled={loading} className="auth-button primary">
-            {loading ? 'Signing in...' : 'Sign In'}
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Username</label>
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            required
+            autoFocus
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary" disabled={isLoading}>
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
-        </form>
-        
-        <div className="auth-divider">
-          <span>or</span>
         </div>
-        
-        <button onClick={handleDemoLogin} disabled={loading} className="auth-button demo">
-          Try Demo Account
+      </form>
+
+      <div className="demo-login">
+        <p>Try the demo account:</p>
+        <button 
+          type="button" 
+          className="btn btn-secondary"
+          onClick={handleDemoLogin}
+          disabled={isLoading}
+        >
+          Login as Demo User
         </button>
-        
-        <div className="auth-footer">
-          <span>Don't have an account? </span>
-          <button onClick={onSwitchToRegister} className="link-button">
-            Sign up
-          </button>
-        </div>
+      </div>
+
+      <div className="auth-switch">
+        Don't have an account?{' '}
+        <button type="button" onClick={onSwitchToRegister}>
+          Sign up here
+        </button>
       </div>
     </div>
   );

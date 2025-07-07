@@ -1,15 +1,23 @@
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import {
   AuthResponse,
   Board,
   BoardCreate,
+  BoardInvite,
   Card,
   CardCreate,
+  CardUpdate,
+  Invitation,
+  InvitationResponse,
   ListCreate,
   LoginData,
+  MoveCard,
+  PasswordUpdate,
   RegisterData,
   TaskList,
   User,
+  UserProfile,
+  UserUpdate,
 } from "../types";
 
 // Use environment variable or fallback to current host with different port
@@ -46,96 +54,98 @@ api.interceptors.response.use(
   }
 );
 
-export const apiService = {
-  // Authentication
-  register: async (data: RegisterData): Promise<User> => {
-    const response = await api.post("/register", data);
-    return response.data;
-  },
+// Authentication API
+export const authAPI = {
+  login: (data: LoginData): Promise<AxiosResponse<AuthResponse>> =>
+    api.post("/login", data),
 
-  login: async (data: LoginData): Promise<AuthResponse> => {
-    const response = await api.post("/login", data);
-    return response.data;
-  },
+  register: (data: RegisterData): Promise<AxiosResponse<User>> =>
+    api.post("/register", data),
 
-  getCurrentUser: async (): Promise<User> => {
-    const response = await api.get("/me");
-    return response.data;
-  },
+  getCurrentUser: (): Promise<AxiosResponse<UserProfile>> => api.get("/me"),
 
-  // Boards
-  getBoards: async (): Promise<Board[]> => {
-    try {
-      console.log("Making API request to:", `${API_BASE_URL}/boards`);
-      const response = await api.get("/boards");
-      console.log("API response received:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw new Error(`Failed to fetch boards: ${error}`);
-    }
-  },
+  updateProfile: (data: UserUpdate): Promise<AxiosResponse<UserProfile>> =>
+    api.put("/me", data),
 
-  getBoard: async (boardId: number): Promise<Board> => {
-    try {
-      console.log(
-        "Making API request to:",
-        `${API_BASE_URL}/boards/${boardId}`
-      );
-      const response = await api.get(`/boards/${boardId}`);
-      console.log("API response received:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("API Error:", error);
-      throw new Error(`Failed to fetch board: ${error}`);
-    }
-  },
-
-  createBoard: async (data: BoardCreate): Promise<Board> => {
-    const response = await api.post("/boards", data);
-    return response.data;
-  },
-
-  deleteBoard: async (boardId: number): Promise<void> => {
-    await api.delete(`/boards/${boardId}`);
-  },
-
-  // Lists
-  createList: async (data: ListCreate): Promise<TaskList> => {
-    const response = await api.post("/lists", data);
-    return response.data;
-  },
-
-  deleteList: async (listId: number): Promise<void> => {
-    await api.delete(`/lists/${listId}`);
-  },
-
-  // Cards
-  createCard: async (data: CardCreate): Promise<Card> => {
-    const response = await api.post("/cards", data);
-    return response.data;
-  },
-
-  moveCard: async (
-    cardId: number,
-    newListId: number,
-    newPosition: number
-  ): Promise<Card> => {
-    const response = await api.put(`/cards/${cardId}/move`, {
-      new_list_id: newListId,
-      new_position: newPosition,
-    });
-    return response.data;
-  },
-
-  deleteCard: async (cardId: number): Promise<void> => {
-    await api.delete(`/cards/${cardId}`);
-  },
+  updatePassword: (
+    data: PasswordUpdate
+  ): Promise<AxiosResponse<{ message: string }>> =>
+    api.put("/me/password", data),
 };
 
-export const authService = {
-  getToken: () => localStorage.getItem("access_token"),
-  setToken: (token: string) => localStorage.setItem("access_token", token),
-  removeToken: () => localStorage.removeItem("access_token"),
-  isAuthenticated: () => !!localStorage.getItem("access_token"),
+// Board API
+export const boardAPI = {
+  getBoards: (): Promise<AxiosResponse<Board[]>> => api.get("/boards"),
+
+  getBoard: (id: number): Promise<AxiosResponse<Board>> =>
+    api.get(`/boards/${id}`),
+
+  createBoard: (data: BoardCreate): Promise<AxiosResponse<Board>> =>
+    api.post("/boards", data),
+
+  deleteBoard: (id: number): Promise<AxiosResponse<{ message: string }>> =>
+    api.delete(`/boards/${id}`),
+
+  inviteUser: (
+    boardId: number,
+    data: BoardInvite
+  ): Promise<AxiosResponse<{ message: string }>> =>
+    api.post(`/boards/${boardId}/invite`, data),
 };
+
+// Invitation API
+export const invitationAPI = {
+  getInvitations: (): Promise<AxiosResponse<Invitation[]>> =>
+    api.get("/invitations"),
+
+  respondToInvitation: (
+    invitationId: number,
+    response: InvitationResponse
+  ): Promise<AxiosResponse<{ message: string }>> =>
+    api.post(`/invitations/${invitationId}/respond`, response),
+};
+
+// List API
+export const listAPI = {
+  createList: (data: ListCreate): Promise<AxiosResponse<TaskList>> =>
+    api.post("/lists", data),
+
+  deleteList: (id: number): Promise<AxiosResponse<{ message: string }>> =>
+    api.delete(`/lists/${id}`),
+};
+
+// Card API
+export const cardAPI = {
+  createCard: (data: CardCreate): Promise<AxiosResponse<Card>> =>
+    api.post("/cards", data),
+
+  updateCard: (id: number, data: CardUpdate): Promise<AxiosResponse<Card>> =>
+    api.put(`/cards/${id}`, data),
+
+  moveCard: (id: number, data: MoveCard): Promise<AxiosResponse<Card>> =>
+    api.put(`/cards/${id}/move`, data),
+
+  deleteCard: (id: number): Promise<AxiosResponse<{ message: string }>> =>
+    api.delete(`/cards/${id}`),
+};
+
+// Helper function to set auth token
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem("access_token", token);
+  } else {
+    localStorage.removeItem("access_token");
+  }
+};
+
+// Helper function to get auth token
+export const getAuthToken = (): string | null => {
+  return localStorage.getItem("access_token");
+};
+
+// Helper function to check if user is authenticated
+export const isAuthenticated = (): boolean => {
+  return !!getAuthToken();
+};
+
+export default api;
