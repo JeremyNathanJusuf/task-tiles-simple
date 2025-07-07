@@ -1,0 +1,39 @@
+FROM node:18-slim
+
+# Install Python and system dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    build-essential \
+    curl \
+    git \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic link for python command
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Set working directory
+WORKDIR /app
+
+# Copy backend requirements and install Python dependencies
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /tmp/requirements.txt
+
+# Copy frontend package files and install Node.js dependencies
+COPY frontend/package*.json /tmp/frontend/
+RUN cd /tmp/frontend && npm install
+
+# Install global development tools
+RUN npm install -g nodemon concurrently
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Expose ports for both services
+EXPOSE 8000 3000
+
+# Default command
+CMD ["bash"] 

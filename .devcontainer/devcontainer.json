@@ -1,7 +1,7 @@
 {
   "name": "Task Tiles - Trello Clone",
-  "dockerComposeFile": "../docker-compose.dev.yml",
-  "service": "backend",
+  "dockerComposeFile": "../docker-compose.devcontainer.yml",
+  "service": "dev",
   "workspaceFolder": "/app",
   "shutdownAction": "stopCompose",
   "features": {
@@ -18,7 +18,10 @@
         "esbenp.prettier-vscode",
         "ms-vscode.vscode-typescript-next",
         "ms-vscode.vscode-json",
-        "ms-vscode.vscode-docker"
+        "ms-vscode.vscode-docker",
+        "ms-vscode.vscode-eslint",
+        "ms-vscode.vscode-npm-script",
+        "ms-vscode.vscode-react-refactor"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
@@ -43,6 +46,6 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "python init_db.py",
+  "postCreateCommand": "cd backend && python init_db.py",
   "remoteUser": "root"
 } 

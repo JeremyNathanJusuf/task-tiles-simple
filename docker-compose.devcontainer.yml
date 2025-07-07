@@ -1,0 +1,32 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: task-tiles-dev
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - backend_data:/app/backend/data
+      - /app/frontend/node_modules
+    environment:
+      - DATABASE_URL=sqlite:///./data/task_tiles.db
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - REACT_APP_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - task-tiles-network
+    working_dir: /app
+    stdin_open: true
+    tty: true
+
+networks:
+  task-tiles-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+    driver: local 
