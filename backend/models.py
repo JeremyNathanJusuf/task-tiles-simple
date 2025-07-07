@@ -1,10 +1,24 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy.orm import relationship
+from datetime import datetime
 from typing import List as ListType
 
 Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    boards = relationship("Board", back_populates="owner", cascade="all, delete-orphan")
 
 
 class Board(Base):
@@ -12,8 +26,15 @@ class Board(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationship with lists
+    # Foreign key to user
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    
+    # Relationships
+    owner = relationship("User", back_populates="boards")
     lists = relationship("TaskList", back_populates="board", cascade="all, delete-orphan")
 
 
@@ -23,6 +44,7 @@ class TaskList(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     position = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
     board_id = Column(Integer, ForeignKey("boards.id"), nullable=False)
     
     # Relationships
@@ -38,6 +60,8 @@ class Card(Base):
     description = Column(Text, nullable=True)
     position = Column(Integer, default=0)
     checklist = Column(JSON, default=list)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     list_id = Column(Integer, ForeignKey("task_lists.id"), nullable=False)
     
     # Relationship
