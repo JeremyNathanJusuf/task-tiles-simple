@@ -37,6 +37,44 @@ function App() {
     }
   }, []);
 
+  const refreshBoardData = useCallback(async () => {
+    if (currentView !== 'dashboard' || !user) return;
+
+    try {
+      const boardsResponse = await boardAPI.getBoards();
+      const previousBoardsLength = boards.length;
+      const newBoardsLength = boardsResponse.data.length;
+      
+      setBoards(boardsResponse.data);
+      
+      // If we have a new board (invitation accepted), show notification
+      if (newBoardsLength > previousBoardsLength) {
+        console.log('New board detected - invitation likely accepted');
+      }
+      
+      // Update current board if it still exists
+      if (currentBoard) {
+        const updatedBoard = boardsResponse.data.find(b => b.id === currentBoard.id);
+        if (updatedBoard) {
+          // Check if board has new activity (more members, etc.)
+          const memberCountChanged = updatedBoard.members.length !== currentBoard.members.length;
+          if (memberCountChanged) {
+            console.log('Board membership changed - refreshing board view');
+          }
+          setCurrentBoard(updatedBoard);
+        } else {
+          // Board was deleted, select first available board
+          setCurrentBoard(boardsResponse.data.length > 0 ? boardsResponse.data[0] : null);
+        }
+      } else if (boardsResponse.data.length > 0 && !currentBoard) {
+        // No board selected but boards exist, select first one
+        setCurrentBoard(boardsResponse.data[0]);
+      }
+    } catch (error) {
+      console.error('Failed to refresh board data:', error);
+    }
+  }, [currentView, user, boards.length, currentBoard]);
+
   useEffect(() => {
     // Check if user is already authenticated
     if (isAuthenticated()) {
@@ -45,6 +83,30 @@ function App() {
       setLoading(false);
     }
   }, [loadUserData]);
+
+  // Set up polling for real-time board updates
+  useEffect(() => {
+    if (currentView === 'dashboard' && user) {
+      // Poll every 45 seconds for board updates
+      const pollInterval = setInterval(() => {
+        refreshBoardData();
+      }, 45000);
+
+      return () => clearInterval(pollInterval);
+    }
+  }, [currentView, user, refreshBoardData]);
+
+  // Refresh when window gains focus
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (currentView === 'dashboard' && user) {
+        refreshBoardData();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [currentView, user, refreshBoardData]);
 
   const handleLogin = async (token: string) => {
     setAuthToken(token);

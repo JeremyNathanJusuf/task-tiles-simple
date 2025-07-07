@@ -23,7 +23,7 @@ import {
 // Use environment variable or fallback to current host with different port
 const API_BASE_URL = process.env.REACT_APP_API_URL
   ? `${process.env.REACT_APP_API_URL}/api`
-  : `${window.location.protocol}//${window.location.hostname}:8000/api`;
+  : `${window.location.protocol}//${window.location.hostname}:8001/api`;
 console.log("API_BASE_URL:", API_BASE_URL);
 
 const api = axios.create({

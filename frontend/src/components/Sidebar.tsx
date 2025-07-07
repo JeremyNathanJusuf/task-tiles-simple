@@ -97,24 +97,22 @@ const Sidebar: React.FC<SidebarProps> = ({
           {boards.map((board) => (
             <div key={board.id} className={`board-item ${currentBoard?.id === board.id ? 'active' : ''}`}>
               <div className="board-main" onClick={() => onBoardSelect(board)}>
-                <div className="board-info">
-                  <h3 className="board-title">{board.title}</h3>
-                  <div className="board-meta">
-                    <span className={`board-type ${getBoardTypeLabel(board).toLowerCase()}`}>
-                      {getBoardTypeLabel(board)}
-                    </span>
-                    <span className="board-owner">
-                      {isOwner(board) ? 'You' : board.owner.username}
+                <h3 className="board-title">{board.title}</h3>
+                <div className="board-meta">
+                  <span className={`board-type ${getBoardTypeLabel(board).toLowerCase()}`}>
+                    {getBoardTypeLabel(board)}
+                  </span>
+                  <span className="board-owner">
+                    {isOwner(board) ? 'You' : board.owner.username}
+                  </span>
+                </div>
+                {board.is_shared && (
+                  <div className="board-members">
+                    <span className="members-count">
+                      {board.members.length + 1} member{board.members.length === 0 ? '' : 's'}
                     </span>
                   </div>
-                  {board.is_shared && (
-                    <div className="board-members">
-                      <span className="members-count">
-                        {board.members.length + 1} member{board.members.length === 0 ? '' : 's'}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
               
               <div className="board-actions">

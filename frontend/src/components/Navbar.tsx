@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { authAPI, invitationAPI, setAuthToken } from '../services/api';
 import { Invitation, UserProfile } from '../types';
 
@@ -13,20 +13,42 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      loadInvitations();
-    }
-  }, [user]);
-
-  const loadInvitations = async () => {
+  const loadInvitations = useCallback(async () => {
+    if (!user) return;
+    
     try {
       const response = await invitationAPI.getInvitations();
       setInvitations(response.data);
     } catch (error) {
       console.error('Failed to load invitations:', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadInvitations();
+      
+      // Set up polling for real-time updates every 30 seconds
+      const pollInterval = setInterval(() => {
+        loadInvitations();
+      }, 30000);
+
+      // Cleanup interval on unmount
+      return () => clearInterval(pollInterval);
+    }
+  }, [user, loadInvitations]);
+
+  // Also check for updates when user becomes active (focuses window)
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (user) {
+        loadInvitations();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
+  }, [user, loadInvitations]);
 
   const handleAcceptInvitation = async (invitationId: number) => {
     try {
@@ -202,6 +224,21 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // For now, we'll just create a data URL for preview
+      // In a real app, you'd upload to a cloud service and get a URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setFormData({ ...formData, avatar_url: result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,12 +248,14 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
     try {
       await authAPI.updateProfile(formData);
       setMessage('Profile updated successfully!');
+      setMessageType('success');
       onUpdate();
       setTimeout(() => {
         window.location.reload();
       }, 1000);
     } catch (error) {
       setMessage('Failed to update profile. Please try again.');
+      setMessageType('error');
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +268,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
 
     if (passwordData.new_password !== passwordData.confirm_password) {
       setMessage('New passwords do not match.');
+      setMessageType('error');
       setIsLoading(false);
       return;
     }
@@ -239,12 +279,21 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
         new_password: passwordData.new_password,
       });
       setMessage('Password updated successfully!');
+      setMessageType('success');
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error) {
       setMessage('Failed to update password. Please check your current password.');
+      setMessageType('error');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getUserInitials = (username: string, fullName?: string): string => {
+    if (fullName) {
+      return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    return username.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -271,10 +320,52 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
         </div>
 
         <div className="modal-body">
-          {message && <div className="message">{message}</div>}
+          {message && (
+            <div className={`message ${messageType}`}>
+              {message}
+            </div>
+          )}
           
           {activeTab === 'profile' && (
             <form onSubmit={handleProfileUpdate}>
+              <div className="form-group">
+                <label>Avatar</label>
+                <div className="avatar-upload-section">
+                  <div className="avatar-preview">
+                    {formData.avatar_url ? (
+                      <img src={formData.avatar_url} alt="Avatar preview" />
+                    ) : (
+                      <span className="avatar-initials">
+                        {getUserInitials(user?.username || '', formData.full_name)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="avatar-upload-controls">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      id="avatar-upload"
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="avatar-upload" className="btn btn-secondary btn-sm">
+                      Upload Image
+                    </label>
+                    <span className="upload-hint">Or enter URL below</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Avatar URL</label>
+                <input
+                  type="url"
+                  value={formData.avatar_url}
+                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                  placeholder="https://example.com/avatar.jpg"
+                />
+              </div>
+              
               <div className="form-group">
                 <label>Full Name</label>
                 <input
@@ -291,18 +382,8 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="Enter your email"
+                  placeholder="your.email@example.com"
                   required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Avatar URL</label>
-                <input
-                  type="url"
-                  value={formData.avatar_url}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                  placeholder="Enter avatar image URL"
                 />
               </div>
               
@@ -322,7 +403,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
                   type="password"
                   value={passwordData.current_password}
                   onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                  placeholder="Enter current password"
+                  placeholder="Enter your current password"
                   required
                 />
               </div>
@@ -333,7 +414,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
                   type="password"
                   value={passwordData.new_password}
                   onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                  placeholder="Enter new password"
+                  placeholder="Enter a new password"
                   required
                 />
               </div>
@@ -344,7 +425,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ user, onClose, onUpdate }) 
                   type="password"
                   value={passwordData.confirm_password}
                   onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                  placeholder="Confirm new password"
+                  placeholder="Confirm your new password"
                   required
                 />
               </div>

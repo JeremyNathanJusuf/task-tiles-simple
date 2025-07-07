@@ -5,6 +5,7 @@ export interface Card {
   list_id: number;
   position: number;
   checklist: string[];
+  priority: "low" | "medium" | "high";
   created_at: string;
   updated_at: string;
   creator: User;
@@ -70,6 +71,7 @@ export interface CardCreate {
   title: string;
   description?: string;
   list_id: number;
+  priority?: "low" | "medium" | "high";
 }
 
 export interface DragResult {
@@ -136,6 +138,7 @@ export interface CardUpdate {
   title?: string;
   description?: string;
   checklist?: string[];
+  priority?: "low" | "medium" | "high";
 }
 
 export interface MoveCard {

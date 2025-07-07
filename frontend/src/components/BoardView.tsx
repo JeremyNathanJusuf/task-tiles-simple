@@ -36,6 +36,7 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
       const cardData: CardCreate = {
         title,
         list_id: listId,
+        priority: 'medium'
       };
       await cardAPI.createCard(cardData);
       onBoardUpdate();
@@ -135,9 +136,16 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
       await boardAPI.inviteUser(board.id, inviteData);
       setShowInviteModal(false);
       // Optionally show a success message
-    } catch (error) {
+      return { success: true };
+    } catch (error: any) {
       console.error('Failed to invite user:', error);
-      // Handle error (show error message)
+      if (error.response?.status === 404) {
+        return { success: false, error: 'User not found. Please check the username.' };
+      } else if (error.response?.status === 400) {
+        return { success: false, error: error.response.data.detail || 'Unable to send invitation.' };
+      } else {
+        return { success: false, error: 'Failed to send invitation. Please try again.' };
+      }
     }
   };
 
@@ -196,14 +204,13 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
         </div>
       </div>
 
-      {/* Card Detail Modal */}
+      {/* Card Priority Modal */}
       {showCardModal && selectedCard && (
-        <CardDetailModal
+        <CardPriorityModal
           card={selectedCard}
           onClose={closeCardModal}
           onUpdate={handleUpdateCard}
           onDelete={handleDeleteCard}
-          user={user}
         />
       )}
 
@@ -288,30 +295,13 @@ const ListComponent: React.FC<ListComponentProps> = ({
     onDrop(list.id, targetPosition);
   };
 
-  const getUserInitials = (username: string, fullName?: string): string => {
-    if (fullName) {
-      return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+  const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+      case 'high': return '#ff6b6b';
+      case 'medium': return '#ffd93d';
+      case 'low': return '#6bcf7f';
+      default: return '#ffd93d';
     }
-    return username.substring(0, 2).toUpperCase();
-  };
-
-  const getUniqueContributors = (card: Card) => {
-    const contributorMap = new Map();
-    
-    // Add creator
-    contributorMap.set(card.creator.id, card.creator);
-    
-    // Add contributors (this will override creator if they're also a contributor)
-    card.contributors.forEach(contributor => {
-      contributorMap.set(contributor.id, {
-        id: contributor.id,
-        username: contributor.username,
-        full_name: contributor.full_name,
-        avatar_url: contributor.avatar_url,
-      });
-    });
-    
-    return Array.from(contributorMap.values());
   };
 
   const isDraggedOver = dragOverList === list.id;
@@ -336,7 +326,6 @@ const ListComponent: React.FC<ListComponentProps> = ({
 
       <div className="cards-container">
         {list.cards.map((card, index) => {
-          const uniqueContributors = getUniqueContributors(card);
           const isDragged = isCardDragged(card.id);
           
           return (
@@ -351,64 +340,40 @@ const ListComponent: React.FC<ListComponentProps> = ({
               )}
               
               <div
-                className={`card ${isDragged ? 'dragging' : ''}`}
+                className={`card-minimal ${isDragged ? 'dragging' : ''}`}
                 draggable
                 onDragStart={() => onDragStart(card)}
                 onDragEnd={onDragEnd}
                 onClick={() => !isDragged && onCardClick(card)}
               >
-                <div className="card-content">
-                  <h4 className="card-title">{card.title}</h4>
-                  {card.description && (
-                    <p className="card-description">{card.description}</p>
-                  )}
-                  
-                  {card.checklist && card.checklist.length > 0 && (
-                    <div className="card-checklist">
-                      <span className="checklist-indicator">
-                        ✓ {card.checklist.length} item{card.checklist.length === 1 ? '' : 's'}
-                      </span>
+                <div 
+                  className="priority-indicator"
+                  style={{ backgroundColor: getPriorityColor(card.priority) }}
+                />
+                <div className="card-minimal-content">
+                  <span className="card-minimal-title">{card.title}</span>
+                  {board.is_shared && (
+                    <div className="card-minimal-avatars">
+                      {card.contributors.slice(0, 2).map((contributor) => (
+                        <div
+                          key={contributor.id}
+                          className="contributor-avatar-mini"
+                          title={contributor.username}
+                        >
+                          {contributor.avatar_url ? (
+                            <img src={contributor.avatar_url} alt={contributor.username} />
+                          ) : (
+                            <span className="contributor-initials-mini">
+                              {contributor.username.substring(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {card.contributors.length > 2 && (
+                        <div className="contributor-more-mini">+{card.contributors.length - 2}</div>
+                      )}
                     </div>
                   )}
-                </div>
-
-                <div className="card-footer">
-                  <div className="card-contributors">
-                    {/* Only show avatars if board is shared */}
-                    {board.is_shared && uniqueContributors.slice(0, 3).map((contributor) => (
-                      <div
-                        key={contributor.id}
-                        className="contributor-avatar"
-                        title={`${contributor.username}${contributor.full_name ? ` (${contributor.full_name})` : ''}`}
-                      >
-                        {contributor.avatar_url ? (
-                          <img src={contributor.avatar_url} alt={contributor.username} />
-                        ) : (
-                          <span className="contributor-initials">
-                            {getUserInitials(contributor.username, contributor.full_name)}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {board.is_shared && uniqueContributors.length > 3 && (
-                      <div className="contributor-more">+{uniqueContributors.length - 3}</div>
-                    )}
-                  </div>
-
-                  <div className="card-actions">
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Delete this card?')) {
-                          onDeleteCard(card.id);
-                        }
-                      }}
-                      title="Delete card"
-                    >
-                      🗑️
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -524,27 +489,37 @@ const AddListComponent: React.FC<AddListComponentProps> = ({ onCreateList }) => 
 interface InviteModalProps {
   board: Board;
   onClose: () => void;
-  onInvite: (username: string, message: string) => void;
+  onInvite: (username: string, message: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const InviteModal: React.FC<InviteModalProps> = ({ board, onClose, onInvite }) => {
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
       setIsLoading(true);
-      try {
-        await onInvite(username.trim(), message.trim());
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      const result = await onInvite(username.trim(), message.trim());
+      
+      if (result.success) {
+        setSuccessMessage('Invitation sent successfully!');
         setUsername('');
         setMessage('');
-      } catch (error) {
-        console.error('Failed to invite user:', error);
-      } finally {
-        setIsLoading(false);
+        setTimeout(() => {
+          onClose();
+        }, 1500);
+      } else {
+        setErrorMessage(result.error || 'Failed to send invitation');
       }
+      
+      setIsLoading(false);
     }
   };
 
@@ -564,6 +539,18 @@ const InviteModal: React.FC<InviteModalProps> = ({ board, onClose, onInvite }) =
         </div>
 
         <div className="modal-body">
+          {errorMessage && (
+            <div className="message error">
+              {errorMessage}
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="message success">
+              {successMessage}
+            </div>
+          )}
+
           <div className="current-members">
             <h3>Current Members</h3>
             <div className="members-list">
@@ -645,195 +632,82 @@ const InviteModal: React.FC<InviteModalProps> = ({ board, onClose, onInvite }) =
   );
 };
 
-// Card Detail Modal
-interface CardDetailModalProps {
+// Card Priority Modal Component
+interface CardPriorityModalProps {
   card: Card;
   onClose: () => void;
   onUpdate: (cardId: number, updates: CardUpdate) => void;
   onDelete: (cardId: number) => void;
-  user: UserProfile | null;
 }
 
-const CardDetailModal: React.FC<CardDetailModalProps> = ({
+const CardPriorityModal: React.FC<CardPriorityModalProps> = ({
   card,
   onClose,
   onUpdate,
   onDelete,
 }) => {
-  const [title, setTitle] = useState(card.title);
-  const [description, setDescription] = useState(card.description || '');
-  const [checklist, setChecklist] = useState<string[]>(card.checklist || []);
-  const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [selectedPriority, setSelectedPriority] = useState<'low' | 'medium' | 'high'>(card.priority);
 
-  const handleSave = () => {
-    const updates: CardUpdate = {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      checklist,
-    };
-    onUpdate(card.id, updates);
+  const handlePriorityChange = (priority: 'low' | 'medium' | 'high') => {
+    setSelectedPriority(priority);
+    onUpdate(card.id, { priority });
   };
 
-  const handleAddChecklistItem = () => {
-    if (newChecklistItem.trim()) {
-      setChecklist([...checklist, newChecklistItem.trim()]);
-      setNewChecklistItem('');
+  const handleDelete = () => {
+    if (window.confirm('Delete this card?')) {
+      onDelete(card.id);
     }
   };
 
-  const handleRemoveChecklistItem = (index: number) => {
-    setChecklist(checklist.filter((_, i) => i !== index));
-  };
-
-  const getUserInitials = (username: string, fullName?: string): string => {
-    if (fullName) {
-      return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+  const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+      case 'high': return '#ff6b6b';
+      case 'medium': return '#ffd93d';
+      case 'low': return '#6bcf7f';
+      default: return '#ffd93d';
     }
-    return username.substring(0, 2).toUpperCase();
   };
-
-  const getUniqueContributors = (card: Card) => {
-    const contributorMap = new Map();
-    
-    // Add creator
-    contributorMap.set(card.creator.id, {
-      ...card.creator,
-      role: 'Creator',
-    });
-    
-    // Add contributors
-    card.contributors.forEach(contributor => {
-      if (contributor.id !== card.creator.id) {
-        contributorMap.set(contributor.id, {
-          ...contributor,
-          role: 'Contributor',
-        });
-      }
-    });
-    
-    return Array.from(contributorMap.values());
-  };
-
-  const uniqueContributors = getUniqueContributors(card);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content card-detail-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content card-priority-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Card Details</h2>
+          <h2>{card.title}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
-          <div className="card-detail-content">
-            <div className="card-detail-main">
-              <div className="form-group">
-                <label>Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Card title"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description..."
-                  rows={4}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Checklist</label>
-                <div className="checklist-container">
-                  {checklist.map((item, index) => (
-                    <div key={index} className="checklist-item">
-                      <span>{item}</span>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleRemoveChecklistItem(index)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  <div className="add-checklist-item">
-                    <input
-                      type="text"
-                      value={newChecklistItem}
-                      onChange={(e) => setNewChecklistItem(e.target.value)}
-                      placeholder="Add checklist item..."
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddChecklistItem()}
-                    />
-                    <button
-                      className="btn btn-sm btn-primary"
-                      onClick={handleAddChecklistItem}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-detail-sidebar">
-              <div className="contributors-section">
-                <h3>Contributors</h3>
-                <div className="contributors-list">
-                  {uniqueContributors.map((contributor) => (
-                    <div key={contributor.id} className="contributor-item">
-                      <div className="contributor-avatar">
-                        {contributor.avatar_url ? (
-                          <img src={contributor.avatar_url} alt={contributor.username} />
-                        ) : (
-                          <span className="contributor-initials">
-                            {getUserInitials(contributor.username, contributor.full_name)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="contributor-info">
-                        <strong>{contributor.username}</strong>
-                        {contributor.full_name && <span>{contributor.full_name}</span>}
-                        <span className="contributor-role">{contributor.role}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="card-info">
-                <h3>Card Info</h3>
-                <div className="info-item">
-                  <strong>Created:</strong> {new Date(card.created_at).toLocaleDateString()}
-                </div>
-                <div className="info-item">
-                  <strong>Updated:</strong> {new Date(card.updated_at).toLocaleDateString()}
-                </div>
-              </div>
+          <div className="priority-section">
+            <h3>Set Priority</h3>
+            <div className="priority-options">
+              {['low', 'medium', 'high'].map((priority) => (
+                <button
+                  key={priority}
+                  className={`priority-btn ${selectedPriority === priority ? 'selected' : ''}`}
+                  onClick={() => handlePriorityChange(priority as 'low' | 'medium' | 'high')}
+                  style={{
+                    backgroundColor: selectedPriority === priority ? getPriorityColor(priority) : 'transparent',
+                    borderColor: getPriorityColor(priority),
+                    color: selectedPriority === priority ? 'white' : getPriorityColor(priority)
+                  }}
+                >
+                  <div
+                    className="priority-indicator-btn"
+                    style={{ backgroundColor: getPriorityColor(priority) }}
+                  />
+                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-primary" onClick={handleSave}>
-            Save Changes
-          </button>
-          <button
-            className="btn btn-danger"
-            onClick={() => {
-              if (window.confirm('Delete this card?')) {
-                onDelete(card.id);
-              }
-            }}
-          >
+          <button className="btn btn-danger" onClick={handleDelete}>
             Delete Card
           </button>
           <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            Close
           </button>
         </div>
       </div>
