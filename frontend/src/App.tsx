@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import BoardView from './components/BoardView';
+import Chatbot from './components/Chatbot';
 import Login from './components/Login';
 import Navbar from './components/Navbar';
 import Register from './components/Register';
@@ -14,6 +15,7 @@ function App() {
   const [currentBoard, setCurrentBoard] = useState<Board | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<'login' | 'register' | 'dashboard'>('login');
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -38,42 +40,47 @@ function App() {
   }, []);
 
   const refreshBoardData = useCallback(async () => {
-    if (currentView !== 'dashboard' || !user) return;
+    if (currentView !== 'dashboard' || !user || isUpdating) return;
 
     try {
       const boardsResponse = await boardAPI.getBoards();
-      const previousBoardsLength = boards.length;
-      const newBoardsLength = boardsResponse.data.length;
       
-      setBoards(boardsResponse.data);
-      
-      // If we have a new board (invitation accepted), show notification
-      if (newBoardsLength > previousBoardsLength) {
-        console.log('New board detected - invitation likely accepted');
-      }
+      setBoards(prevBoards => {
+        const newBoards = boardsResponse.data;
+        
+        // If we have a new board (invitation accepted), show notification
+        if (newBoards.length > prevBoards.length) {
+          console.log('New board detected - invitation likely accepted');
+        }
+        
+        return newBoards;
+      });
       
       // Update current board if it still exists
-      if (currentBoard) {
-        const updatedBoard = boardsResponse.data.find(b => b.id === currentBoard.id);
-        if (updatedBoard) {
-          // Check if board has new activity (more members, etc.)
-          const memberCountChanged = updatedBoard.members.length !== currentBoard.members.length;
-          if (memberCountChanged) {
-            console.log('Board membership changed - refreshing board view');
+      setCurrentBoard(prevCurrentBoard => {
+        if (prevCurrentBoard) {
+          const updatedBoard = boardsResponse.data.find(b => b.id === prevCurrentBoard.id);
+          if (updatedBoard) {
+            // Check if board has new activity (more members, etc.)
+            const memberCountChanged = updatedBoard.members.length !== prevCurrentBoard.members.length;
+            if (memberCountChanged) {
+              console.log('Board membership changed - refreshing board view');
+            }
+            return updatedBoard;
+          } else {
+            // Board was deleted, select first available board
+            return boardsResponse.data.length > 0 ? boardsResponse.data[0] : null;
           }
-          setCurrentBoard(updatedBoard);
-        } else {
-          // Board was deleted, select first available board
-          setCurrentBoard(boardsResponse.data.length > 0 ? boardsResponse.data[0] : null);
+        } else if (boardsResponse.data.length > 0) {
+          // No board selected but boards exist, select first one
+          return boardsResponse.data[0];
         }
-      } else if (boardsResponse.data.length > 0 && !currentBoard) {
-        // No board selected but boards exist, select first one
-        setCurrentBoard(boardsResponse.data[0]);
-      }
+        return prevCurrentBoard;
+      });
     } catch (error) {
       console.error('Failed to refresh board data:', error);
     }
-  }, [currentView, user, boards.length, currentBoard]);
+  }, [currentView, user, isUpdating]);
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -126,25 +133,34 @@ function App() {
   };
 
   const handleBoardsUpdate = async () => {
+    // Prevent multiple simultaneous updates
+    if (isUpdating) return;
+    
+    setIsUpdating(true);
     try {
       const boardsResponse = await boardAPI.getBoards();
       setBoards(boardsResponse.data);
       
       // Update current board if it still exists
-      if (currentBoard) {
-        const updatedBoard = boardsResponse.data.find(b => b.id === currentBoard.id);
-        if (updatedBoard) {
-          setCurrentBoard(updatedBoard);
-        } else {
-          // Board was deleted, select first available board
-          setCurrentBoard(boardsResponse.data.length > 0 ? boardsResponse.data[0] : null);
+      setCurrentBoard(prevCurrentBoard => {
+        if (prevCurrentBoard) {
+          const updatedBoard = boardsResponse.data.find(b => b.id === prevCurrentBoard.id);
+          if (updatedBoard) {
+            return updatedBoard;
+          } else {
+            // Board was deleted, select first available board
+            return boardsResponse.data.length > 0 ? boardsResponse.data[0] : null;
+          }
+        } else if (boardsResponse.data.length > 0) {
+          // No board selected but boards exist, select first one
+          return boardsResponse.data[0];
         }
-      } else if (boardsResponse.data.length > 0 && !currentBoard) {
-        // No board selected but boards exist, select first one
-        setCurrentBoard(boardsResponse.data[0]);
-      }
+        return prevCurrentBoard;
+      });
     } catch (error) {
       console.error('Failed to update boards:', error);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -162,6 +178,14 @@ function App() {
         // Board might have been deleted, refresh boards list
         handleBoardsUpdate();
       }
+    }
+  };
+
+  // Handle board selection by ID (for chatbot callbacks)
+  const handleBoardSelectById = (boardId: number) => {
+    const board = boards.find(b => b.id === boardId);
+    if (board) {
+      handleBoardSelect(board);
     }
   };
 
@@ -218,39 +242,75 @@ function App() {
           user={user}
         />
         
-        <div className="main-content">
+        <main className="main-content">
           {currentBoard ? (
             <BoardView
               board={currentBoard}
-              onBoardUpdate={handleBoardUpdate}
+              onBoardUpdate={handleBoardsUpdate}
               user={user}
             />
           ) : (
             <div className="empty-state">
               <div className="empty-state-content">
                 <h2>Welcome to Task Tiles!</h2>
-                <p>Create your first board to get started with organizing your tasks.</p>
+                <p>Your intelligent Kanban board with AI-powered task management</p>
+                
                 <div className="welcome-features">
                   <div className="feature">
-                    <span className="feature-icon">👥</span>
-                    <h3>Collaborate</h3>
-                    <p>Invite team members to work together on shared boards</p>
-                  </div>
-                  <div className="feature">
                     <span className="feature-icon">📋</span>
-                    <h3>Organize</h3>
-                    <p>Create lists and cards to organize your tasks</p>
+                    <h3>Smart Boards</h3>
+                    <p>Organize your projects with customizable boards and lists</p>
                   </div>
                   <div className="feature">
-                    <span className="feature-icon">✅</span>
-                    <h3>Track Progress</h3>
-                    <p>Use checklists and move cards to track your progress</p>
+                    <span className="feature-icon">🤖</span>
+                    <h3>AI Assistant</h3>
+                    <p>Chat with our AI to create tasks, move cards, and manage your workflow</p>
+                  </div>
+                  <div className="feature">
+                    <span className="feature-icon">👥</span>
+                    <h3>Team Collaboration</h3>
+                    <p>Invite team members to collaborate on shared boards</p>
+                  </div>
+                  <div className="feature">
+                    <span className="feature-icon">🎯</span>
+                    <h3>Priority Management</h3>
+                    <p>Set priorities and track progress with visual indicators</p>
+                  </div>
+                </div>
+                
+                <div className="welcome-actions">
+                  <p>To get started, select a board from the sidebar or create a new one.</p>
+                  {boards.length === 0 && (
+                    <p><strong>You don't have any boards yet!</strong> Click the "+ New Board" button to create your first board.</p>
+                  )}
+                </div>
+                
+                <div className="welcome-stats">
+                  <div className="stat">
+                    <span className="stat-number">{boards.length}</span>
+                    <span className="stat-label">Board{boards.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-number">{boards.reduce((total, board) => total + board.lists.reduce((listTotal, list) => listTotal + list.cards.length, 0), 0)}</span>
+                    <span className="stat-label">Total Tasks</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-number">{boards.reduce((total, board) => total + (board.is_shared ? board.members.length + 1 : 1), 0)}</span>
+                    <span className="stat-label">Team Members</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
+        </main>
+        
+        {/* Add Chatbot with callback functions for immediate updates */}
+        <Chatbot 
+          user={user} 
+          currentBoard={currentBoard}
+          onBoardsUpdate={handleBoardsUpdate}
+          onBoardChange={handleBoardSelectById}
+        />
       </div>
     </div>
   );

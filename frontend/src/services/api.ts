@@ -148,4 +148,58 @@ export const isAuthenticated = (): boolean => {
   return !!getAuthToken();
 };
 
+// Chatbot API
+export const chatbotAPI = {
+  sendMessage: (
+    message: string,
+    conversationHistory?: Array<{
+      role: string;
+      content: string;
+      timestamp?: string;
+    }>,
+    currentBoardContext?: {
+      board_id?: number;
+      board_title?: string;
+      board_description?: string;
+      lists?: Array<{
+        id: number;
+        title: string;
+        cards_count: number;
+      }>;
+      recent_cards?: Array<{
+        id: number;
+        title: string;
+        list_name: string;
+      }>;
+    }
+  ): Promise<
+    AxiosResponse<{
+      message: string;
+      action?: string;
+      data?: any;
+    }>
+  > =>
+    api.post("/chatbot", {
+      message,
+      conversation_history: conversationHistory || [],
+      current_board_context: currentBoardContext || null,
+    }),
+
+  voiceToText: (
+    audioBlob: Blob
+  ): Promise<
+    AxiosResponse<{
+      text: string;
+    }>
+  > => {
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "audio.wav");
+    return api.post("/chatbot/voice-to-text", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+};
+
 export default api;
