@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { cardAPI, listAPI } from '../services/api';
-import { Board, Card, CardCreate, CardUpdate, ListCreate, TaskList, UserProfile } from '../types';
+import { boardAPI, cardAPI, listAPI } from '../services/api';
+import { Board, BoardInvite, Card, CardCreate, CardUpdate, ListCreate, TaskList, UserProfile } from '../types';
 
 interface BoardViewProps {
   board: Board;
@@ -11,6 +11,12 @@ interface BoardViewProps {
 const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [draggedCard, setDraggedCard] = useState<Card | null>(null);
+  const [dragOverList, setDragOverList] = useState<number | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Check if current user is the owner of the board
+  const isOwner = user && board.owner && user.id === board.owner.id;
 
   const handleCreateList = async (title: string) => {
     try {
@@ -89,19 +95,79 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
     setShowCardModal(false);
   };
 
+  const handleDragStart = (card: Card) => {
+    setDraggedCard(card);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedCard(null);
+    setDragOverList(null);
+  };
+
+  const handleDragOver = (listId: number) => {
+    setDragOverList(listId);
+  };
+
+  const handleDrop = (targetListId: number, targetPosition: number) => {
+    if (draggedCard && draggedCard.list_id !== targetListId) {
+      // Moving to a different list
+      handleMoveCard(draggedCard.id, targetListId, targetPosition);
+    } else if (draggedCard) {
+      // Moving within the same list
+      const currentList = board.lists.find(list => list.id === draggedCard.list_id);
+      if (currentList) {
+        const currentPosition = currentList.cards.findIndex(card => card.id === draggedCard.id);
+        if (currentPosition !== targetPosition) {
+          handleMoveCard(draggedCard.id, targetListId, targetPosition);
+        }
+      }
+    }
+    setDraggedCard(null);
+    setDragOverList(null);
+  };
+
+  const handleInviteUser = async (username: string, message: string) => {
+    try {
+      const inviteData: BoardInvite = {
+        username,
+        message,
+      };
+      await boardAPI.inviteUser(board.id, inviteData);
+      setShowInviteModal(false);
+      // Optionally show a success message
+    } catch (error) {
+      console.error('Failed to invite user:', error);
+      // Handle error (show error message)
+    }
+  };
+
   return (
     <div className="board-view">
       <div className="board-header">
-        <h1>{board.title}</h1>
-        {board.description && <p className="board-description">{board.description}</p>}
-        <div className="board-info">
-          <span className="board-owner">Owner: {board.owner.username}</span>
-          {board.is_shared && (
-            <span className="board-members">
-              {board.members.length + 1} member{board.members.length === 0 ? '' : 's'}
-            </span>
+        <div className="board-header-left">
+          <h1>{board.title}</h1>
+          {board.description && <p className="board-description">{board.description}</p>}
+        </div>
+        
+        <div className="board-header-right">
+          {isOwner && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowInviteModal(true)}
+            >
+              👥 Invite Users
+            </button>
           )}
         </div>
+      </div>
+
+      <div className="board-info">
+        <span className="board-owner">Owner: {board.owner.username}</span>
+        {board.is_shared && (
+          <span className="board-members">
+            {board.members.length + 1} member{board.members.length === 0 ? '' : 's'}
+          </span>
+        )}
       </div>
 
       <div className="board-content">
@@ -117,6 +183,13 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
               onDeleteList={handleDeleteList}
               onCardClick={openCardModal}
               user={user}
+              draggedCard={draggedCard}
+              dragOverList={dragOverList}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              board={board}
             />
           ))}
           <AddListComponent onCreateList={handleCreateList} />
@@ -133,6 +206,15 @@ const BoardView: React.FC<BoardViewProps> = ({ board, onBoardUpdate, user }) => 
           user={user}
         />
       )}
+
+      {/* Invite Users Modal */}
+      {showInviteModal && (
+        <InviteModal
+          board={board}
+          onClose={() => setShowInviteModal(false)}
+          onInvite={handleInviteUser}
+        />
+      )}
     </div>
   );
 };
@@ -147,6 +229,13 @@ interface ListComponentProps {
   onDeleteList: (listId: number) => void;
   onCardClick: (card: Card) => void;
   user: UserProfile | null;
+  draggedCard: Card | null;
+  dragOverList: number | null;
+  onDragStart: (card: Card) => void;
+  onDragEnd: () => void;
+  onDragOver: (listId: number) => void;
+  onDrop: (listId: number, position: number) => void;
+  board: Board;
 }
 
 const ListComponent: React.FC<ListComponentProps> = ({
@@ -155,6 +244,13 @@ const ListComponent: React.FC<ListComponentProps> = ({
   onDeleteCard,
   onDeleteList,
   onCardClick,
+  draggedCard,
+  dragOverList,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+  board,
 }) => {
   const [showAddCard, setShowAddCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState('');
@@ -171,6 +267,25 @@ const ListComponent: React.FC<ListComponentProps> = ({
     if (window.confirm(`Delete list "${list.title}"? This will also delete all cards in the list.`)) {
       onDeleteList(list.id);
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    onDragOver(list.id);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dropPosition = list.cards.length; // Drop at the end by default
+    onDrop(list.id, dropPosition);
+  };
+
+  const handleCardDrop = (e: React.DragEvent, targetPosition: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDrop(list.id, targetPosition);
   };
 
   const getUserInitials = (username: string, fullName?: string): string => {
@@ -199,8 +314,15 @@ const ListComponent: React.FC<ListComponentProps> = ({
     return Array.from(contributorMap.values());
   };
 
+  const isDraggedOver = dragOverList === list.id;
+  const isCardDragged = (cardId: number) => draggedCard?.id === cardId;
+
   return (
-    <div className="list">
+    <div 
+      className={`list ${isDraggedOver ? 'drag-over' : ''}`}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div className="list-header">
         <h3>{list.title}</h3>
         <button 
@@ -213,70 +335,94 @@ const ListComponent: React.FC<ListComponentProps> = ({
       </div>
 
       <div className="cards-container">
-        {list.cards.map((card) => {
+        {list.cards.map((card, index) => {
           const uniqueContributors = getUniqueContributors(card);
+          const isDragged = isCardDragged(card.id);
           
           return (
-            <div
-              key={card.id}
-              className="card"
-              onClick={() => onCardClick(card)}
-            >
-              <div className="card-content">
-                <h4 className="card-title">{card.title}</h4>
-                {card.description && (
-                  <p className="card-description">{card.description}</p>
-                )}
-                
-                {card.checklist && card.checklist.length > 0 && (
-                  <div className="card-checklist">
-                    <span className="checklist-indicator">
-                      ✓ {card.checklist.length} item{card.checklist.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="card-footer">
-                <div className="card-contributors">
-                  {uniqueContributors.slice(0, 3).map((contributor) => (
-                    <div
-                      key={contributor.id}
-                      className="contributor-avatar"
-                      title={`${contributor.username}${contributor.full_name ? ` (${contributor.full_name})` : ''}`}
-                    >
-                      {contributor.avatar_url ? (
-                        <img src={contributor.avatar_url} alt={contributor.username} />
-                      ) : (
-                        <span className="contributor-initials">
-                          {getUserInitials(contributor.username, contributor.full_name)}
-                        </span>
-                      )}
+            <div key={card.id}>
+              {/* Drop zone before card */}
+              {draggedCard && !isDragged && (
+                <div
+                  className="drop-zone"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleCardDrop(e, index)}
+                />
+              )}
+              
+              <div
+                className={`card ${isDragged ? 'dragging' : ''}`}
+                draggable
+                onDragStart={() => onDragStart(card)}
+                onDragEnd={onDragEnd}
+                onClick={() => !isDragged && onCardClick(card)}
+              >
+                <div className="card-content">
+                  <h4 className="card-title">{card.title}</h4>
+                  {card.description && (
+                    <p className="card-description">{card.description}</p>
+                  )}
+                  
+                  {card.checklist && card.checklist.length > 0 && (
+                    <div className="card-checklist">
+                      <span className="checklist-indicator">
+                        ✓ {card.checklist.length} item{card.checklist.length === 1 ? '' : 's'}
+                      </span>
                     </div>
-                  ))}
-                  {uniqueContributors.length > 3 && (
-                    <div className="contributor-more">+{uniqueContributors.length - 3}</div>
                   )}
                 </div>
 
-                <div className="card-actions">
-                  <button
-                    className="btn btn-sm btn-danger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm('Delete this card?')) {
-                        onDeleteCard(card.id);
-                      }
-                    }}
-                    title="Delete card"
-                  >
-                    🗑️
-                  </button>
+                <div className="card-footer">
+                  <div className="card-contributors">
+                    {/* Only show avatars if board is shared */}
+                    {board.is_shared && uniqueContributors.slice(0, 3).map((contributor) => (
+                      <div
+                        key={contributor.id}
+                        className="contributor-avatar"
+                        title={`${contributor.username}${contributor.full_name ? ` (${contributor.full_name})` : ''}`}
+                      >
+                        {contributor.avatar_url ? (
+                          <img src={contributor.avatar_url} alt={contributor.username} />
+                        ) : (
+                          <span className="contributor-initials">
+                            {getUserInitials(contributor.username, contributor.full_name)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {board.is_shared && uniqueContributors.length > 3 && (
+                      <div className="contributor-more">+{uniqueContributors.length - 3}</div>
+                    )}
+                  </div>
+
+                  <div className="card-actions">
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm('Delete this card?')) {
+                          onDeleteCard(card.id);
+                        }
+                      }}
+                      title="Delete card"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+        
+        {/* Drop zone at the end of the list */}
+        {draggedCard && (
+          <div
+            className="drop-zone"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleCardDrop(e, list.cards.length)}
+          />
+        )}
       </div>
 
       <div className="add-card-section">
@@ -370,6 +516,131 @@ const AddListComponent: React.FC<AddListComponentProps> = ({ onCreateList }) => 
           + Add another list
         </button>
       )}
+    </div>
+  );
+};
+
+// Invite Modal Component
+interface InviteModalProps {
+  board: Board;
+  onClose: () => void;
+  onInvite: (username: string, message: string) => void;
+}
+
+const InviteModal: React.FC<InviteModalProps> = ({ board, onClose, onInvite }) => {
+  const [username, setUsername] = useState('');
+  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.trim()) {
+      setIsLoading(true);
+      try {
+        await onInvite(username.trim(), message.trim());
+        setUsername('');
+        setMessage('');
+      } catch (error) {
+        console.error('Failed to invite user:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const getUserInitials = (username: string, fullName?: string): string => {
+    if (fullName) {
+      return fullName.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    return username.substring(0, 2).toUpperCase();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content invite-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Invite Users to "{board.title}"</h2>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="modal-body">
+          <div className="current-members">
+            <h3>Current Members</h3>
+            <div className="members-list">
+              {/* Board Owner */}
+              <div className="member-item owner">
+                <div className="member-avatar">
+                  {board.owner.avatar_url ? (
+                    <img src={board.owner.avatar_url} alt={board.owner.username} />
+                  ) : (
+                    <span className="contributor-initials">
+                      {getUserInitials(board.owner.username, board.owner.full_name)}
+                    </span>
+                  )}
+                </div>
+                <div className="member-info">
+                  <strong>{board.owner.username}</strong>
+                  {board.owner.full_name && <span>{board.owner.full_name}</span>}
+                </div>
+                <div className="member-role">Owner</div>
+              </div>
+
+              {/* Board Members */}
+              {board.members.map((member) => (
+                <div key={member.id} className="member-item">
+                  <div className="member-avatar">
+                    {member.avatar_url ? (
+                      <img src={member.avatar_url} alt={member.username} />
+                    ) : (
+                      <span className="contributor-initials">
+                        {getUserInitials(member.username, member.full_name)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="member-info">
+                    <strong>{member.username}</strong>
+                    {member.full_name && <span>{member.full_name}</span>}
+                  </div>
+                  <div className="member-role">Member</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username to invite..."
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Message (optional)</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add a personal message..."
+                rows={3}
+              />
+            </div>
+
+            <div className="modal-footer">
+              <button type="submit" className="btn btn-primary" disabled={isLoading}>
+                {isLoading ? 'Sending...' : 'Send Invitation'}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

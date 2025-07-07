@@ -18,11 +18,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
 
     try {
       const response = await authAPI.login(formData);
       const { access_token } = response.data;
+      setError('');
       onLogin(access_token);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');
@@ -31,22 +31,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setIsLoading(true);
+  const handleDismissError = () => {
     setError('');
-
-    try {
-      const response = await authAPI.login({
-        username: 'demo',
-        password: 'demo123'
-      });
-      const { access_token } = response.data;
-      onLogin(access_token);
-    } catch (err: any) {
-      setError('Demo login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   return (
@@ -54,8 +40,33 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
       <h2>Welcome Back</h2>
       
       {error && (
-        <div className="error-message">
+        <div className="error-message" style={{ position: 'relative', paddingRight: '40px' }}>
           {error}
+          <button
+            type="button"
+            onClick={handleDismissError}
+            style={{
+              position: 'absolute',
+              right: '8px',
+              top: '8px',
+              background: 'none',
+              border: 'none',
+              fontSize: '18px',
+              cursor: 'pointer',
+              color: '#9b2c2c',
+              padding: '0',
+              lineHeight: '1',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -87,18 +98,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
           </button>
         </div>
       </form>
-
-      <div className="demo-login">
-        <p>Try the demo account:</p>
-        <button 
-          type="button" 
-          className="btn btn-secondary"
-          onClick={handleDemoLogin}
-          disabled={isLoading}
-        >
-          Login as Demo User
-        </button>
-      </div>
 
       <div className="auth-switch">
         Don't have an account?{' '}

@@ -523,10 +523,25 @@ body {
   background-color: #5a67d8;
 }
 
+/* Board Header */
 .board-header {
   padding: 24px;
   background: white;
   border-bottom: 1px solid #e1e5e9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.board-header-left {
+  flex: 1;
+}
+
+.board-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .board-header h1 {
@@ -539,6 +554,26 @@ body {
   color: #666;
   font-size: 14px;
   margin: 0;
+}
+
+.board-info {
+  padding: 12px 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e5e9;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.board-owner {
+  font-weight: 500;
+}
+
+.board-members {
+  color: #667eea;
+  font-weight: 500;
 }
 
 .board-content {
@@ -1673,10 +1708,39 @@ body {
 
 .card.dragging {
   opacity: 0.5;
+  transform: rotate(5deg);
+  cursor: grabbing;
 }
 
-.card.drag-over {
-  border-color: #0079bf;
+.card:not(.dragging) {
+  cursor: grab;
+}
+
+.list.drag-over {
+  background-color: #e2f4ff;
+  border: 2px dashed #667eea;
+}
+
+.drop-zone {
+  height: 8px;
+  margin: 4px 0;
+  background-color: transparent;
+  border: 2px dashed transparent;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.drop-zone:hover {
+  background-color: #f0f8ff;
+  border-color: #667eea;
+}
+
+.card[draggable="true"] {
+  cursor: grab;
+}
+
+.card[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .card-content {
@@ -1689,6 +1753,7 @@ body {
   color: #172b4d;
   margin: 0 0 0.5rem 0;
   line-height: 1.3;
+  word-wrap: break-word;
 }
 
 .card-description {
@@ -1700,6 +1765,8 @@ body {
 
 .card-checklist {
   margin-bottom: 0.5rem;
+  font-size: 12px;
+  color: #666;
 }
 
 .checklist-indicator {
