@@ -1,8 +1,10 @@
 import axios from "axios";
 import { Board, Card, TaskList } from "../types";
 
-// Use the current host but different port for API
-const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:8000/api`;
+// Use environment variable or fallback to current host with different port
+const API_BASE_URL = process.env.REACT_APP_API_URL 
+  ? `${process.env.REACT_APP_API_URL}/api`
+  : `${window.location.protocol}//${window.location.hostname}:8000/api`;
 console.log("API_BASE_URL:", API_BASE_URL);
 
 const api = axios.create({

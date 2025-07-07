@@ -1,117 +1,161 @@
-# Task Tiles - Trello-like Task Management App
+# Task Tiles - Trello Clone
 
-A simple, Trello-inspired task management application built with FastAPI (Python) backend and React frontend.
+A full-stack task management application built with FastAPI (Python) backend and React (TypeScript) frontend, featuring persistent SQLite database storage.
 
 ## Features
 
-- **Board Management**: View your main task board immediately upon opening
-- **Lists (Columns)**: Create and manage multiple lists arranged horizontally
-- **Cards (Tasks)**: Add, edit, and manage individual task cards
-- **Drag & Drop**: Move cards between lists and reorder within lists
-- **Checklists**: Each card supports checklist functionality
-- **CRUD Operations**: Full Create, Read, Update, Delete functionality
+- 📋 **Kanban Board**: Drag and drop task cards between lists
+- 🗂️ **List Management**: Create and organize task lists
+- 📝 **Card Management**: Add, edit, and manage task cards
+- 💾 **Persistent Storage**: SQLite database for data persistence
+- 🔄 **Real-time Updates**: Live updates across the application
+- 🐳 **Docker Support**: Complete containerized development environment
 
 ## Tech Stack
 
-- **Backend**: FastAPI (Python 3.11)
-- **Frontend**: React with TypeScript (coming soon)
-- **Database**: SQLite (development), easily upgradable to PostgreSQL
-- **Dev Environment**: Docker Dev Container
+### Backend
+- **FastAPI**: Modern, fast web framework for Python
+- **SQLAlchemy**: SQL toolkit and ORM
+- **SQLite**: Lightweight database
+- **Alembic**: Database migrations
+- **Pydantic**: Data validation using Python type hints
 
-## Getting Started
+### Frontend
+- **React**: JavaScript library for building user interfaces
+- **TypeScript**: Typed superset of JavaScript
+- **Axios**: HTTP client for API requests
+- **CSS3**: Modern styling with Flexbox/Grid
 
-### Prerequisites
+## Development Setup
 
-- Docker
-- VS Code with Dev Containers extension
+### Option 1: Docker Compose (Recommended)
 
-### Setup Instructions
-
-1. **Open in Dev Container**
-   - Open this project in VS Code
-   - When prompted, click "Reopen in Container" or use Command Palette: `Dev Containers: Reopen in Container`
-   - The dev container will automatically build and install all dependencies
-
-2. **Start the Backend Server**
+1. **Clone the repository**
    ```bash
-   cd backend
-   python run.py
+   git clone <repository-url>
+   cd task-tiles-simple
    ```
-   
-   The API will be available at: `http://localhost:8000`
-   
-   - API Documentation: `http://localhost:8000/docs`
-   - Alternative docs: `http://localhost:8000/redoc`
 
-3. **Test the API**
-   
-   You can test the API endpoints using the interactive documentation at `/docs` or with curl:
-   
+2. **Create environment file**
    ```bash
-   # Get the main board
-   curl http://localhost:8000/api/board
-   
-   # Create a new list
-   curl -X POST "http://localhost:8000/api/lists?title=New%20List"
-   
-   # Create a new card
-   curl -X POST "http://localhost:8000/api/cards?title=New%20Task&list_id=1"
+   cp .env.example .env
    ```
+
+3. **Start the development environment**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up --build
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+
+### Option 2: Dev Container (VS Code)
+
+1. **Open in VS Code**
+   - Install the "Dev Containers" extension
+   - Open the project in VS Code
+   - Click "Reopen in Container" when prompted
+
+2. **The dev container will automatically:**
+   - Build the Docker environment
+   - Install all dependencies
+   - Initialize the database
+   - Start the services
+
+### Option 3: Manual Setup
+
+#### Backend Setup
+```bash
+cd backend
+pip install -r requirements.txt
+python init_db.py
+python run.py
+```
+
+#### Frontend Setup
+```bash
+cd frontend
+npm install
+npm start
+```
+
+## Environment Configuration
+
+Create a `.env` file in the project root:
+
+```env
+# Backend Configuration
+DATABASE_URL=sqlite:///data/task_tiles.db
+PYTHONUNBUFFERED=1
+PYTHONDONTWRITEBYTECODE=1
+
+# Frontend Configuration
+REACT_APP_API_URL=http://localhost:8000
+CHOKIDAR_USEPOLLING=true
+
+# Development Settings
+NODE_ENV=development
+```
 
 ## API Endpoints
 
 ### Board Management
 - `GET /api/board` - Get the main board with all lists and cards
-
-### List Management
 - `POST /api/lists` - Create a new list
-  - Parameters: `title` (string)
-
-### Card Management
 - `POST /api/cards` - Create a new card
-  - Parameters: `title` (string), `description` (optional), `list_id` (int)
 - `PUT /api/cards/{card_id}/move` - Move a card to different list/position
-  - Parameters: `new_list_id` (int), `new_position` (int)
+
+### API Documentation
+Visit `http://localhost:8000/docs` for interactive API documentation.
+
+## Database
+
+The application uses SQLite for development with the following schema:
+
+- **Boards**: Main board container
+- **TaskLists**: Column lists within boards
+- **Cards**: Individual task cards within lists
+
+The database is automatically initialized with sample data on first run.
+
+## Development Features
+
+- **Hot Reload**: Both frontend and backend support hot reloading
+- **Database Persistence**: Data persists between container restarts
+- **Volume Mounting**: Source code is mounted for live development
+- **Port Forwarding**: Automatic port forwarding in dev containers
 
 ## Project Structure
 
 ```
-.
+task-tiles-simple/
+├── backend/                 # FastAPI backend
+│   ├── main.py             # Main application file
+│   ├── models.py           # SQLAlchemy models
+│   ├── database.py         # Database configuration
+│   ├── init_db.py          # Database initialization
+│   └── requirements.txt    # Python dependencies
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── services/       # API services
+│   │   └── types.ts        # TypeScript types
+│   └── package.json        # Node.js dependencies
 ├── .devcontainer/          # Dev container configuration
-│   ├── devcontainer.json   # Dev container settings
-│   └── Dockerfile         # Container definition
-├── backend/               # FastAPI backend
-│   ├── main.py           # Main application file
-│   └── run.py            # Development server script
-├── frontend/             # React frontend (coming soon)
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
+├── docker-compose.dev.yml  # Docker Compose for development
+└── README.md              # This file
 ```
-
-## Development
-
-### Backend Development
-
-The backend is built with FastAPI and includes:
-- **Models**: Pydantic models for data validation
-- **In-memory storage**: Simple storage for development (will be replaced with database)
-- **CORS**: Configured for frontend integration
-- **Auto-reload**: Development server automatically reloads on code changes
-
-### Next Steps
-
-1. **Database Integration**: Replace in-memory storage with SQLAlchemy + SQLite
-2. **Frontend Development**: Create React frontend with drag-and-drop functionality
-3. **User Authentication**: Add user management and authentication
-4. **Advanced Features**: Add due dates, labels, attachments, etc.
 
 ## Contributing
 
-1. Make sure you're working in the dev container
-2. Make your changes
-3. Test the API using the interactive documentation
-4. Submit your changes
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-This project is for educational purposes. 
+This project is open source and available under the [MIT License](LICENSE). 

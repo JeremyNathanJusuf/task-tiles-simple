@@ -1,13 +1,10 @@
 {
   "name": "Task Tiles - Trello Clone",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".."
-  },
+  "dockerComposeFile": "../docker-compose.dev.yml",
+  "service": "backend",
+  "workspaceFolder": "/app",
+  "shutdownAction": "stopCompose",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "18"
-    },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
@@ -20,7 +17,8 @@
         "bradlc.vscode-tailwindcss",
         "esbenp.prettier-vscode",
         "ms-vscode.vscode-typescript-next",
-        "ms-vscode.vscode-json"
+        "ms-vscode.vscode-json",
+        "ms-vscode.vscode-docker"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
@@ -45,6 +43,6 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "pip install -r requirements.txt",
-  "remoteUser": "vscode"
+  "postCreateCommand": "python init_db.py",
+  "remoteUser": "root"
 } 

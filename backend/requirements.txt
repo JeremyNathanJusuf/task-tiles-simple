@@ -21,4 +21,8 @@ pytest-asyncio==0.21.1
 httpx==0.25.2
 
 # Additional utilities
-python-dotenv==1.0.0 
+python-dotenv==1.0.0
+
+# Database driver for SQLite (included with Python)
+# For PostgreSQL, add: psycopg2-binary==2.9.9
+# For MySQL, add: PyMySQL==1.1.0 
